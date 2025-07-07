@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.5",
     "autoprefixer": "^10.4.21",
+    "axios": "^1.10.0",
     "framer-motion": "^12.9.4",
     "lucide-react": "^0.503.0",
     "postcss": "^8.5.3",

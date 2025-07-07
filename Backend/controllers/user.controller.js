@@ -9,17 +9,27 @@ const {
   sendPasswordResetEmail,
   sendResetSuccessEmail,
 } = require("../mailtrap/emails");
+
 const signupRoute = async (req, res) => {
   const { name, email, password, role } = req.body;
+
+  console.log("📥 Signup Request Body:", req.body);
+
   try {
     if (!name || !email || !password) {
-      throw new Error("All fields are required");
+      console.log("❌ Missing fields");
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
     }
 
     const userAlreadyExist = await UserModel.findOne({ email });
 
     if (userAlreadyExist) {
-      res.status(400).json({ success: false, message: "User already exists" });
+      console.log("❌ User already exists");
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -33,25 +43,29 @@ const signupRoute = async (req, res) => {
       name,
       role,
       verificationToken,
-      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
     });
 
     await user.save();
+    console.log("✅ User saved");
 
     generateTokenAndSetCookie(res, user._id);
+    console.log("🍪 Token set");
 
     await sendVerificationEmail(user.email, verificationToken);
+    console.log("📧 Verification email sent");
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      messgae: "User created successfully",
+      message: "User created successfully",
       user: {
         ...user._doc,
         password: undefined,
       },
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("🚨 Signup Error:", error);
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -67,12 +81,10 @@ const verifyEmail = async (req, res) => {
     console.log(user);
 
     if (!user) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid or expired verification code",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code",
+      });
     }
     user.isVerified = true;
     user.verificationToken = undefined;
@@ -96,50 +108,36 @@ const verifyEmail = async (req, res) => {
 };
 const loginRoute = async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const user = await UserModel.findOne({ email });
     if (!user) {
-      return res.status(400).json({ msg: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid credentials" });
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid credentials" });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: "Invalid email or password" });
-    }
+    generateTokenAndSetCookie(res, user._id);
 
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_ACCESS_SECRET,
-      { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN }
-    );
-
-    const refreshToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN }
-    );
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // Can't be accessed via JavaScript
-      secure: process.env.NODE_ENV === "production", // Only sent over HTTPS in production
-      sameSite: "Strict", // Helps prevent CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-    });
+    user.lastLogin = new Date();
+    await user.save();
 
     res.status(200).json({
-      message: "Login successful",
-      accessToken,
+      success: true,
+      message: "Logged in successfully",
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        ...user._doc,
+        password: undefined,
       },
     });
   } catch (error) {
-    console.error("login error: ", error);
-    res.status(500).json({ msg: "Login failed" });
+    console.log("Error in login ", error);
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -207,12 +205,10 @@ const forgotPassword = async (req, res) => {
       `${process.env.CLIENT_URL}/reset-password/${resetToken}`
     );
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "password reset link sent to your email",
-      });
+    res.status(200).json({
+      success: true,
+      message: "password reset link sent to your email",
+    });
   } catch (error) {
     console.log("Error in forgot password", error);
     res.status(400).json({ success: false, message: error.message });
