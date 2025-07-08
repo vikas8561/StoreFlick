@@ -106,10 +106,6 @@ const FetchProduct: React.FC = () => {
   addToCart(product);
 };
 
-  const handleViewDetails = (product: Product) => {
-    console.log("View details:", product.title);
-    // You can navigate to product detail page here
-  };
 
   return (
     <div className="bg-gray-100 min-h-screen p-6">

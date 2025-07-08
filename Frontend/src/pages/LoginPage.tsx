@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
 
     try {
       const response = await axios.post<ApiResponse>(
-        "http://localhost:8000/user/login",
+        "https://storeflick.onrender.com/user/login",
         formData,
         { withCredentials: true }
       );
@@ -67,6 +67,7 @@ const LoginPage: React.FC = () => {
             { withCredentials: true }
           );
 
+          setSuccess("Login successful! Redirecting...");
           // ✅ Optional: Clear local cart if syncing fully handled on server
           // localStorage.removeItem("cartItems");
         }

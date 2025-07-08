@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import axios from "axios";
 
-axios.defaults.baseURL = "http://localhost:8000";
+axios.defaults.baseURL = "https://storeflick.onrender.com";
 
 // ---------- TYPES ----------
 interface Product {
