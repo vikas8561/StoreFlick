@@ -47,10 +47,31 @@ const LoginPage: React.FC = () => {
         { withCredentials: true }
       );
 
-      if (response.data.success) {
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+      if (response.data.success && response.data.user) {
+        const user = response.data.user;
 
-        // ✅ Redirect immediately to home page
+        // ✅ Store user in localStorage
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // ✅ Read cart from localStorage
+        const localCart = JSON.parse(localStorage.getItem("cartItems") || "[]");
+
+        // ✅ If local cart exists, send to backend
+        if (localCart.length > 0) {
+          await axios.post(
+            `/api/cart`,
+            {
+              userId: user._id,
+              cartItems: localCart,
+            },
+            { withCredentials: true }
+          );
+
+          // ✅ Optional: Clear local cart if syncing fully handled on server
+          // localStorage.removeItem("cartItems");
+        }
+
+        // ✅ Redirect to homepage
         window.location.href = "/";
       } else {
         setError(response.data.message);

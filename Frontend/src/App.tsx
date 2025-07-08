@@ -7,6 +7,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ProductDetails from "./pages/ProductDetails"; // ✅ imported
 import { SearchProvider } from "./context/SearchContext";
 import CartPage from "./pages/CartPage";
+import OrderSuccess from "./components/OrderSuccess";
 
 const App: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const App: React.FC = () => {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
             {/* ✅ new route */}
           </Routes>
         </Router>

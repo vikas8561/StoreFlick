@@ -15,6 +15,11 @@ const CartPage: React.FC = () => {
     0
   );
 
+  const handlePlaceOrder = () => {
+    alert("Your order has been placed!");
+    navigate("/order-success");
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -109,7 +114,7 @@ const CartPage: React.FC = () => {
 
               <button
                 className="mt-6 w-full bg-teal-600 text-white py-3 rounded font-semibold hover:bg-teal-700 transition"
-                onClick={() => alert("✅ Order Placed Successfully!")}
+                onClick={handlePlaceOrder}
               >
                 Place Order
               </button>
