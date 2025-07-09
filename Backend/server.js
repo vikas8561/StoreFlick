@@ -12,7 +12,8 @@ const cors = require('cors');
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://store-flick.vercel.app'
+    'https://store-flick.vercel.app',
+    'https://store-flick-6qkr.vercel.app'
   ],
   credentials: true,
 }));
