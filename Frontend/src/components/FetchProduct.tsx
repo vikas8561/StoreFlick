@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useSearch } from "../context/SearchContext";
 import useDebounce from "../hooks/useDebounce";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
 
 
 interface Review {
@@ -71,6 +72,7 @@ const FetchProduct: React.FC = () => {
   const [totalProducts, setTotalProducts] = useState<number>(0);
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -103,8 +105,12 @@ const FetchProduct: React.FC = () => {
   const totalPages = Math.ceil(totalProducts / limit);
 
   const handleAddToCart = (product: Product) => {
-  addToCart(product);
-};
+    addToCart(product);
+  };
+
+  const handleWishlistToggle = (product: Product) => {
+    toggleWishlist(product);
+  };
 
 
   return (
@@ -145,12 +151,30 @@ const FetchProduct: React.FC = () => {
                       View Details
                     </button>
 
-                    <button title="view"
-                      onClick={() => handleAddToCart(product)}
-                      className="p-2 bg-gray-200 rounded hover:bg-gray-300 transition cursor-pointer"
-                    >
-                      <ShoppingCart size={20} className="text-teal-600" />
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        className="p-2 bg-gray-200 rounded hover:bg-gray-300 transition cursor-pointer"
+                        title="Add to Cart"
+                      >
+                        <ShoppingCart size={20} className="text-teal-600" />
+                      </button>
+
+                      <button
+                        onClick={() => handleWishlistToggle(product)}
+                        className={`p-2 rounded transition cursor-pointer ${
+                          isInWishlist(product.id)
+                            ? "bg-red-100 hover:bg-red-200"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                        title={isInWishlist(product.id) ? "Remove from Wishlist" : "Add to Wishlist"}
+                      >
+                        <Heart 
+                          size={20} 
+                          className={isInWishlist(product.id) ? "text-red-500 fill-current" : "text-gray-600"} 
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

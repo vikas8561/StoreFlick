@@ -4,7 +4,6 @@ import React, {
   useState,
   ReactNode,
   useEffect,
-  useRef,
 } from "react";
 import axios from "axios";
 
@@ -17,9 +16,11 @@ interface Product {
   price: number;
   thumbnail: string;
 }
+
 interface CartItem extends Product {
   quantity: number;
 }
+
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (product: Product) => void;
@@ -28,6 +29,7 @@ interface CartContextType {
   decreaseQuantity: (id: number) => void;
   totalItems: number;
   totalCost: number;
+  clearCart: () => void;
 }
 
 // ---------- CONTEXT ----------
@@ -39,33 +41,30 @@ export const useCart = () => {
 };
 
 // ---------- HELPERS ----------
-const getInitialCart = (): CartItem[] => {
+const getLocalCart = (): CartItem[] => {
   try {
-    const s = localStorage.getItem("cartItems");
-    return s ? JSON.parse(s) : [];
+    const stored = localStorage.getItem("cartItems");
+    return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
   }
 };
 
-const sanitizeCartItems = (items: CartItem[]) =>
-  items.map(({ id, title, price, thumbnail, quantity }) => ({
-    id,
-    title,
-    price,
-    thumbnail,
-    quantity,
-  }));
+const saveLocalCart = (items: CartItem[]) => {
+  localStorage.setItem("cartItems", JSON.stringify(items));
+};
 
-const areCartsDifferent = (a: CartItem[], b: CartItem[]) => {
-  if (a.length !== b.length) return true;
-  const map = new Map<number, CartItem>();
-  a.forEach((item) => map.set(item.id, item));
-  for (const item of b) {
-    const match = map.get(item.id);
-    if (!match || match.quantity !== item.quantity) return true;
+const clearLocalCart = () => {
+  localStorage.removeItem("cartItems");
+};
+
+const getUserId = () => {
+  try {
+    const user = localStorage.getItem("user");
+    return user ? JSON.parse(user)._id : null;
+  } catch {
+    return null;
   }
-  return false;
 };
 
 // ---------- PROVIDER ----------
@@ -73,181 +72,247 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [synced, setSynced] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [initialized, setInitialized] = useState(false);
 
-  const isSyncingRef = useRef(false);
-  const initializedRef = useRef(false);
-
-  const getUserId = () =>
-    JSON.parse(localStorage.getItem("user") || "null")?._id || null;
-
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // On initial mount
-  useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    const currentUserId = getUserId();
-    if (currentUserId) {
-      setUserId(currentUserId);
-      setSynced(false);
-    } else {
-      const stored = getInitialCart();
-      setCartItems(stored);
-      setSynced(true);
+  // Check authentication status
+  const checkAuthStatus = () => {
+    const userId = getUserId();
+    const newAuthStatus = !!userId;
+    
+    if (newAuthStatus !== isLoggedIn) {
+      setIsLoggedIn(newAuthStatus);
+      return true; // Auth status changed
     }
-  }, []);
+    return false; // No change
+  };
 
-  // Detect login/logout
+  // Initialize cart on mount
   useEffect(() => {
-    const interval = setInterval(() => {
-      const currentUserId = getUserId();
-
-      if (!currentUserId && userId) {
-        // Logout
-        setCartItems([]);
-        localStorage.removeItem("cartItems");
-        setUserId(null);
-        setSynced(false);
-        setIsLoading(false);
-        isSyncingRef.current = false;
-      } else if (currentUserId && currentUserId !== userId) {
-        // Login or switch
-        setUserId(currentUserId);
-        setSynced(false);
-        setIsLoading(false);
-        isSyncingRef.current = false;
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [userId]);
-
-  // Sync cart after login
-  useEffect(() => {
-    if (!userId || synced || isLoading || isSyncingRef.current) return;
-
-    const syncCart = async () => {
-      try {
-        isSyncingRef.current = true;
-        setIsLoading(true);
-
-        const localCart = getInitialCart();
-        const res = await axios.get(`/api/cart/${userId}`);
-        const dbCart: CartItem[] = res.data?.cartItems || [];
-
-        const mergedMap = new Map<number, CartItem>();
-        dbCart.forEach((item) => mergedMap.set(item.id, { ...item }));
-
-        localCart.forEach((item) => {
-          if (mergedMap.has(item.id)) {
-            const existing = mergedMap.get(item.id)!;
-            mergedMap.set(item.id, {
-              ...existing,
-              quantity: existing.quantity + item.quantity,
+    if (initialized) return;
+    
+    const initializeCart = async () => {
+      const userId = getUserId();
+      const localItems = getLocalCart();
+      console.log("🚀 Initializing cart. User logged in:", !!userId, "Local items:", localItems.length);
+      
+      if (userId) {
+        // User is logged in, try to load from backend
+        try {
+          const response = await axios.get(`/api/cart/${userId}`);
+          const dbItems = response.data.cartItems || [];
+          console.log("📥 Backend cart items:", dbItems.length);
+          
+          if (dbItems.length > 0) {
+            // If we have local items, merge them
+            if (localItems.length > 0) {
+              console.log("🔄 Merging local and backend items during init...");
+              const mergedItems = mergeCarts(localItems, dbItems);
+              setCartItems(mergedItems);
+              // Save merged items to backend
+              await axios.post("/api/cart", {
+                userId,
+                cartItems: mergedItems,
+              });
+              console.log("✅ Merged and saved to backend:", mergedItems.length, "items");
+            } else {
+              setCartItems(dbItems);
+              console.log("✅ Using backend items:", dbItems.length, "items");
+            }
+          } else if (localItems.length > 0) {
+            // No backend items, but we have local items
+            setCartItems(localItems);
+            // Save local items to backend
+            await axios.post("/api/cart", {
+              userId,
+              cartItems: localItems,
             });
-          } else {
-            mergedMap.set(item.id, { ...item });
+            console.log("✅ Saved local items to backend:", localItems.length, "items");
           }
-        });
+        } catch (error) {
+          console.log("❌ Backend load failed, using localStorage:", error);
+          setCartItems(localItems);
+        }
+      } else {
+        // Not logged in, use local items
+        setCartItems(localItems);
+        console.log("✅ Using local items (not logged in):", localItems.length, "items");
+      }
+      
+      setInitialized(true);
+    };
 
-        const mergedCart = Array.from(mergedMap.values());
+    initializeCart();
+  }, [initialized]);
 
-        const shouldUpdate =
-          localCart.length > 0 && areCartsDifferent(mergedCart, dbCart);
+  // Monitor authentication changes
+  useEffect(() => {
+    const handleAuthChange = async () => {
+      const authChanged = checkAuthStatus();
+      
+      if (!authChanged) return;
+      
+      const userId = getUserId();
+      console.log("🔄 Auth status changed. User logged in:", !!userId);
+      
+      if (userId) {
+        // User logged in
+        const localItems = getLocalCart();
+        console.log("📦 Local cart items:", localItems.length);
+        
+        if (localItems.length > 0) {
+          // Merge local cart with backend
+          try {
+            console.log("🔄 Merging local cart with backend...");
+            const response = await axios.post("/api/cart/merge", {
+              userId,
+              localCartItems: localItems,
+            });
+            const mergedItems = response.data.cartItems;
+            console.log("✅ Cart merged successfully:", mergedItems.length, "items");
+            setCartItems(mergedItems);
+            clearLocalCart(); // Clear local storage after merge
+          } catch (error) {
+            console.error("❌ Failed to merge cart:", error);
+            // Keep local items if merge fails
+            setCartItems(localItems);
+          }
+        } else {
+          // No local items, try to load from backend
+          try {
+            console.log("📥 Loading cart from backend...");
+            const response = await axios.get(`/api/cart/${userId}`);
+            const dbItems = response.data.cartItems || [];
+            console.log("✅ Loaded cart from backend:", dbItems.length, "items");
+            setCartItems(dbItems);
+          } catch (error) {
+            console.error("❌ Failed to load cart from backend:", error);
+          }
+        }
+      } else {
+        // User logged out, clear cart
+        console.log("🚪 User logged out, clearing cart");
+        setCartItems([]);
+        clearLocalCart();
+      }
+    };
 
-        if (shouldUpdate) {
+    // Check immediately
+    handleAuthChange();
+    
+    // Set up interval to monitor auth changes
+    const interval = setInterval(handleAuthChange, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
+
+  // Save cart changes
+  useEffect(() => {
+    if (!initialized) return;
+
+    const userId = getUserId();
+    console.log("💾 Saving cart changes. Items:", cartItems.length, "User logged in:", !!userId);
+    
+    if (userId) {
+      // Save to backend for logged-in users
+      const saveToBackend = async () => {
+        try {
           await axios.post("/api/cart", {
             userId,
-            cartItems: sanitizeCartItems(mergedCart),
+            cartItems: cartItems,
           });
+          console.log("✅ Cart saved to backend successfully");
+        } catch (error) {
+          console.error("❌ Failed to save cart to backend:", error);
+          // Fallback to localStorage if backend fails
+          saveLocalCart(cartItems);
+          console.log("💾 Fallback: Saved to localStorage");
         }
-
-        localStorage.removeItem("cartItems");
-        setCartItems(mergedCart);
-        setSynced(true);
-      } catch (err) {
-        console.error("❌ Cart sync failed:", err);
-        const fallback = getInitialCart();
-        setCartItems(fallback);
-        setSynced(true);
-      } finally {
-        isSyncingRef.current = false;
-        setIsLoading(false);
-      }
-    };
-
-    syncCart();
-  }, [userId, synced, isLoading]);
-
-  // Auto-save
-  useEffect(() => {
-    if (isSyncingRef.current || isLoading) return;
-
-    if (!userId || !synced) {
-      if (!userId) {
-        localStorage.setItem("cartItems", JSON.stringify(cartItems));
-      }
-      return;
+      };
+      saveToBackend();
+    } else {
+      // Save to localStorage for non-logged users
+      saveLocalCart(cartItems);
+      console.log("💾 Saved to localStorage (not logged in)");
     }
+  }, [cartItems, initialized]);
 
-    const saveToBackend = async () => {
-      try {
-        await axios.post("/api/cart", {
-          userId,
-          cartItems: sanitizeCartItems(cartItems),
+  // Merge carts helper function
+  const mergeCarts = (localItems: CartItem[], dbItems: CartItem[]): CartItem[] => {
+    const map = new Map();
+
+    [...dbItems, ...localItems].forEach((item) => {
+      if (map.has(item.id)) {
+        const existing = map.get(item.id);
+        map.set(item.id, {
+          ...item,
+          quantity: existing.quantity + item.quantity,
         });
-      } catch (err) {
-        console.error("❌ Auto-save failed:", err);
+      } else {
+        map.set(item.id, item);
       }
-    };
+    });
 
-    saveToBackend();
-  }, [cartItems, userId, synced, isLoading]);
+    return Array.from(map.values());
+  };
 
-  // Cart Operations
-  const addToCart = (p: Product) => {
-    if (isSyncingRef.current) return;
-    setCartItems((curr) => {
-      const existing = curr.find((c) => c.id === p.id);
+  // Cart operations
+  const addToCart = (product: Product) => {
+    console.log("➕ Adding to cart:", product.title);
+    setCartItems((current) => {
+      const existing = current.find(item => item.id === product.id);
       if (existing) {
-        return curr.map((c) =>
-          c.id === p.id ? { ...c, quantity: c.quantity + 1 } : c
+        console.log("📈 Increasing quantity for:", product.title);
+        return current.map(item =>
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         );
       }
-      return [...curr, { ...p, quantity: 1 }];
+      console.log("🆕 Adding new item:", product.title);
+      return [...current, { ...product, quantity: 1 }];
     });
   };
 
   const removeFromCart = (id: number) => {
-    if (isSyncingRef.current) return;
-    setCartItems((curr) => curr.filter((c) => c.id !== id));
+    console.log("🗑️ Removing from cart, item ID:", id);
+    setCartItems((current) => 
+      current.filter(item => item.id !== id)
+    );
   };
 
   const increaseQuantity = (id: number) => {
-    if (isSyncingRef.current) return;
-    setCartItems((curr) =>
-      curr.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+    console.log("📈 Increasing quantity for item ID:", id);
+    setCartItems((current) =>
+      current.map(item =>
+        item.id === id 
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
       )
     );
   };
 
   const decreaseQuantity = (id: number) => {
-    if (isSyncingRef.current) return;
-    setCartItems((curr) =>
-      curr
-        .map((item) =>
-          item.id === id ? { ...item, quantity: item.quantity - 1 } : item
+    console.log("📉 Decreasing quantity for item ID:", id);
+    setCartItems((current) =>
+      current
+        .map(item =>
+          item.id === id 
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
         )
-        .filter((item) => item.quantity > 0)
+        .filter(item => item.quantity > 0)
     );
   };
 
-  const totalItems = cartItems.reduce((s, i) => s + i.quantity, 0);
-  const totalCost = cartItems.reduce((s, i) => s + i.quantity * i.price, 0);
+  const clearCart = () => {
+    console.log("🧹 Clearing entire cart");
+    setCartItems([]);
+    clearLocalCart();
+  };
+
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCost = cartItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
 
   return (
     <CartContext.Provider
@@ -259,6 +324,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         decreaseQuantity,
         totalItems,
         totalCost,
+        clearCart,
       }}
     >
       {children}

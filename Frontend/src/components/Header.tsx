@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Search, ShoppingCart, Menu, X } from "lucide-react";
+import { Search, ShoppingCart, Heart, Menu, X } from "lucide-react";
 import { useSearch } from "../context/SearchContext";
 import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
 import { Link, useNavigate } from "react-router-dom";
 
 const Header: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { searchTerm, setSearchTerm } = useSearch();
-  const { totalItems } = useCart();
+  const { totalItems, clearCart } = useCart();
+  const { totalItems: wishlistItems, clearWishlist } = useWishlist();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +20,8 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    localStorage.removeItem("cartItems");
+    clearCart(); // Use cart context's clearCart function
+    clearWishlist(); // Use wishlist context's clearWishlist function
     setIsAuthenticated(false);
     window.location.href = "/";
   };
@@ -77,6 +80,22 @@ const Header: React.FC = () => {
             {totalItems > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
                 {totalItems}
+              </span>
+            )}
+          </div>
+
+          {/* Wishlist Icon */}
+          <div
+            className="relative cursor-pointer"
+            onClick={() => navigate("/wishlist")}
+          >
+            <Heart
+              size={26}
+              className="text-gray-700 hover:text-red-500 transition"
+            />
+            {wishlistItems > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
+                {wishlistItems}
               </span>
             )}
           </div>

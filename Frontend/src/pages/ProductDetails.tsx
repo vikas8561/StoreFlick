@@ -2,8 +2,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ShoppingCart, ArrowLeft } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Heart } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
 import Header from "../components/Header";
 
 interface Product {
@@ -26,6 +27,7 @@ const ProductDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -79,9 +81,29 @@ const ProductDetails: React.FC = () => {
           </p>
           <p className="text-yellow-600">⭐ {product.rating} / 5</p>
 
-          <button onClick={() => addToCart(product)} className="w-fit px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 flex items-center gap-2 transition duration-200">
-            <ShoppingCart size={20} /> Add to Cart
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => addToCart(product)} 
+              className="flex-1 px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 flex items-center justify-center gap-2 transition duration-200"
+            >
+              <ShoppingCart size={20} /> Add to Cart
+            </button>
+
+            <button 
+              onClick={() => toggleWishlist(product)} 
+              className={`px-4 py-2 rounded flex items-center justify-center gap-2 transition duration-200 ${
+                isInWishlist(product.id)
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              <Heart 
+                size={20} 
+                className={isInWishlist(product.id) ? "fill-current" : ""} 
+              />
+              {isInWishlist(product.id) ? "Remove from Wishlist" : "Add to Wishlist"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
