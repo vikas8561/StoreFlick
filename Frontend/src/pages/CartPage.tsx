@@ -3,6 +3,7 @@ import React from "react";
 import { useCart } from "../context/CartContext";
 import Header from "../components/Header";
 import { useNavigate } from "react-router-dom";
+import OrderSuccess from "../components/OrderSuccess";
 
 const CartPage: React.FC = () => {
   const { cartItems, increaseQuantity, decreaseQuantity, removeFromCart } =
@@ -15,10 +16,50 @@ const CartPage: React.FC = () => {
     0
   );
 
+  // New state for address form and order success
+  const [showAddressForm, setShowAddressForm] = React.useState(false);
+  const [showOrderSuccess, setShowOrderSuccess] = React.useState(false);
+  const [address, setAddress] = React.useState({
+    name: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    phone: "",
+  });
+  const [errors, setErrors] = React.useState<{ [key: string]: string }>({});
+
   const handlePlaceOrder = () => {
-    alert("Your order has been placed!");
-    navigate("/order-success");
+    setShowAddressForm(true);
   };
+
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAddress({ ...address, [e.target.name]: e.target.value });
+  };
+
+  const validateAddress = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!address.name) newErrors.name = "Name is required";
+    if (!address.address) newErrors.address = "Address is required";
+    if (!address.city) newErrors.city = "City is required";
+    if (!address.state) newErrors.state = "State is required";
+    if (!address.zip) newErrors.zip = "ZIP is required";
+    if (!address.phone) newErrors.phone = "Phone is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAddressSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateAddress()) {
+      setShowAddressForm(false);
+      setShowOrderSuccess(true);
+    }
+  };
+
+  if (showOrderSuccess) {
+    return <OrderSuccess />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -28,6 +69,96 @@ const CartPage: React.FC = () => {
 
         {cartItems.length === 0 ? (
           <p className="text-gray-600 text-lg">Your cart is empty.</p>
+        ) : showAddressForm ? (
+          <form
+            className="max-w-lg mx-auto bg-white p-8 rounded shadow-md"
+            onSubmit={handleAddressSubmit}
+          >
+            <h3 className="text-2xl font-bold mb-6 text-gray-800">Shipping Address</h3>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-1">Name</label>
+              <input
+                type="text"
+                name="name"
+                value={address.name}
+                onChange={handleAddressChange}
+                className="w-full border rounded px-3 py-2"
+              />
+              {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-1">Address</label>
+              <input
+                type="text"
+                name="address"
+                value={address.address}
+                onChange={handleAddressChange}
+                className="w-full border rounded px-3 py-2"
+              />
+              {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+            </div>
+            <div className="mb-4 flex gap-4">
+              <div className="flex-1">
+                <label className="block text-gray-700 mb-1">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={address.city}
+                  onChange={handleAddressChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.city && <p className="text-red-500 text-sm">{errors.city}</p>}
+              </div>
+              <div className="flex-1">
+                <label className="block text-gray-700 mb-1">State</label>
+                <input
+                  type="text"
+                  name="state"
+                  value={address.state}
+                  onChange={handleAddressChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.state && <p className="text-red-500 text-sm">{errors.state}</p>}
+              </div>
+            </div>
+            <div className="mb-4 flex gap-4">
+              <div className="flex-1">
+                <label className="block text-gray-700 mb-1">ZIP</label>
+                <input
+                  type="text"
+                  name="zip"
+                  value={address.zip}
+                  onChange={handleAddressChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.zip && <p className="text-red-500 text-sm">{errors.zip}</p>}
+              </div>
+              <div className="flex-1">
+                <label className="block text-gray-700 mb-1">Phone</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={address.phone}
+                  onChange={handleAddressChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-teal-600 text-white py-3 rounded font-semibold hover:bg-teal-700 transition mt-4"
+            >
+              Submit & Place Order
+            </button>
+            <button
+              type="button"
+              className="w-full mt-2 bg-gray-200 text-gray-700 py-2 rounded font-semibold hover:bg-gray-300 transition"
+              onClick={() => setShowAddressForm(false)}
+            >
+              Cancel
+            </button>
+          </form>
         ) : (
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left: Cart Items */}
