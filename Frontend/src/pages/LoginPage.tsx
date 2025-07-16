@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
 
     try {
       const response = await axios.post<ApiResponse>(
-        "http://localhost:8000/user/login",
+        "https://storeflick.onrender.com/user/login",
         formData,
         { withCredentials: true }
       );

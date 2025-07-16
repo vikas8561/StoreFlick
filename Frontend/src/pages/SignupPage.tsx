@@ -48,7 +48,7 @@ const SignupPage: React.FC = () => {
 
     try {
       const response = await axios.post<ApiResponse>(
-        "http://localhost:8000/user/signup",
+        "https://storeflick.onrender.com/user/signup",
         formData,
         { withCredentials: true }
       );
