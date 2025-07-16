@@ -14,7 +14,7 @@ const VerifyEmailPage: React.FC = () => {
 
     try {
       const response = await axios.post(
-        "https://storeflick.onrender.com/user/verify-email",
+        "http://localhost:8000/user/verify-email",
         { code },
         { withCredentials: true }
       );

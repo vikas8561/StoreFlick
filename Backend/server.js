@@ -10,12 +10,15 @@ const app = express();
 
 const cors = require('cors');
 
-
-
-
+// Update: Allow credentials and set specific origin for CORS
+const corsOptions = {
+  origin: "http://localhost:5173",
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json()); // allows us to parse icoming request from req.body
 app.use(cookieParser());
-app.use(cors());
+
 app.use('/user', UserRouter);
 app.use("/api/cart", CartRouter);
 app.use("/api/wishlist", WishlistRouter);
