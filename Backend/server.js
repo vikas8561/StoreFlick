@@ -13,6 +13,7 @@ const cors = require('cors');
 // Update: Allow credentials and set specific origin for CORS
 const corsOptions = {
   origin: "http://localhost:5173",
+  origin: 'https://storeflick.onrender.com',
   credentials: true,
 };
 app.use(cors(corsOptions));
