@@ -10,14 +10,7 @@ const app = express();
 
 const cors = require('cors');
 
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://store-flick.vercel.app',
-    'https://store-flick-6qkr.vercel.app'
-  ],
-  credentials: true,
-}));
+app.use(cors());
 
 
 app.use(express.json()); // allows us to parse icoming request from req.body
