@@ -10,11 +10,12 @@ const app = express();
 
 const cors = require('cors');
 
-app.use(cors());
+
 
 
 app.use(express.json()); // allows us to parse icoming request from req.body
 app.use(cookieParser());
+app.use(cors());
 app.use('/user', UserRouter);
 app.use("/api/cart", CartRouter);
 app.use("/api/wishlist", WishlistRouter);
